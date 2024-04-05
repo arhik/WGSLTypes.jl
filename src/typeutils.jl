@@ -153,6 +153,8 @@ function wgslType(expr::Union{Expr, Type{Expr}})
 			xargs = join(wgslType.(x), ", ")
 			return "$(wgslType(eval(f)))($(xargs))"
 		end
+	elseif @capture(expr,@ptr(ex_))
+		return "&$(wgslType(ex))"
 	elseif @capture(expr, a_::b_)
 		return "$a:$(wgslType(eval(b)))"
 	elseif @capture(expr, a_::b_ = c_)
