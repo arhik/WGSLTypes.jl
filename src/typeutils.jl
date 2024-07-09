@@ -39,6 +39,7 @@ end
 # 	string(T) |> (x) -> split(x, ".") |> last
 # end
 
+
 function wgslType(t::Type{T}) where T
 	if T <: UserStruct
 		return string(T)

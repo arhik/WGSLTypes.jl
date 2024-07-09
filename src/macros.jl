@@ -24,7 +24,7 @@ end
 
 
 # TODO this function takes block of fields too
-# Another function that makes a sequence of field 
+# Another function that makes a sequence of field
 # statements is needed.
 function evalStructField(fieldDict, field)
 	if @capture(field, if cond_ ifblock__ end)
@@ -137,11 +137,12 @@ function wgslFunctionStatement(io, stmnt; indent=true, indentLevel=0)
 			wgslFunctionStatements(io, ifblock;indent=true, indentLevel=indentLevel)
 		end
 		# TODO this is incomplete
+	elseif @capture(stmnt, @atomicdecl a_::b_)
+		# do nothing
 	elseif @capture(stmnt, f_(a__))
 		if f == :synchronize && length(a) == 0
 			write(io, "workgroupBarrier();\n")
 		elseif startswith(f |> string, "atomic")
-			@infiltrate
 			write(io, "$f($(join(wgslType.(a), ", ")));\n")
 		else
 			@error "This is function $f is not captured yet"
@@ -150,7 +151,6 @@ function wgslFunctionStatement(io, stmnt; indent=true, indentLevel=0)
 		@capture(forLoop, for idx_::idxType_ in range_ block__ end)
 		@capture(range, start_:step_:stop_)
 		#idxInit = @var Base.eval(:($idx::UInt32 = Meta.parse(wgslType(UInt32(r.start - 1)))))
-		#@infiltrate
 		idxExpr = :($idx::$idxType)
 		write(io, "for(var $(wgslType(idxExpr)) = $(start); $idx < $(stop); $(idx)++) { \n")
 		wgslFunctionStatements(io, block; indent=false, indentLevel=indentLevel)
@@ -192,7 +192,7 @@ end
 function wgslFunctionBody(fnbody, io, endstring)
 	if @capture(fnbody[1], fnname_(fnargs__)::fnout_)
 		if !(fnname in wgslfunctions)
-			quote	
+			quote
 				function $fnname() end
 				wgslType(::typeof(eval($fnname))) = string($fnname)
 			end |> eval
@@ -381,4 +381,3 @@ macro code_wgsl(expr)
 	a = wgslCode(eval(expr)) |> println
 	return a
 end
-

@@ -15,7 +15,6 @@ end
 export UserStruct
 export wgslType
 
-abstract type Atomic end
 abstract type Zeroable end
 abstract type StorableType end
 abstract type Constructible end
@@ -41,6 +40,12 @@ end
 
 wgslType(attr::VarAttribute) = begin
 	return "@group($(attr.group)) @binding($(attr.binding)) "
+end
+
+struct Atomic{T} end
+
+function wgslType(t::Type{Atomic{T}}) where T
+	return "atomic<$(wgslType(T))>"
 end
 
 @enum VariableType begin
@@ -105,7 +110,7 @@ wgslType(var::VarDataType{T}) where T = begin
 	attrStr = let t = var.attribute; t == nothing ? "" : wgslType(t) end
 	varStr = "var$(wgslType(Val(var.varType))) $(wgslType(var.valTypePair))"
 	valStr = let t = var.value; t == nothing ? "" : "= $(wgslType(t))" end
-	return "$(attrStr)$(varStr) $(valStr);\n"	
+	return "$(attrStr)$(varStr) $(valStr);\n"
 end
 
 wgslType(letvar::LetDataType{T}) where T = begin
@@ -116,7 +121,6 @@ wgslType(letvar::LetDataType{T}) where T = begin
 		@assert length(a) == N*M "Matrix dimensions should match input length: But found {$N, $M} and {$L} instead!!!"
 		valStr = "= $(wgslType(t))"
 	elseif @capture(t, SVector{N_, TT_, L_}(a__))
-		@infiltrate
 		@assert length(a) == N "Matrix dimensions should match input length: But found {$N} and {$L} instead!!!"
 		valStr = "= $(wgslType(t))"
 	else
@@ -131,8 +135,8 @@ struct GenericVar{T} <: Variable
 end
 
 function GenericVar(
-	pair::Pair{Symbol, T}, 
-	group::Union{Nothing, Int}, 
+	pair::Pair{Symbol, T},
+	group::Union{Nothing, Int},
 	binding::Union{Nothing, Int},
 	value::eltype(T)
 ) where T
@@ -149,12 +153,12 @@ end
 @forward GenericVar.var attribute, valueType, value, Base.getproperty, Base.setproperty!
 
 struct UniformVar{T} <: Variable
-	var::VarDataType{T}	
+	var::VarDataType{T}
 end
 
 function UniformVar(
-	pair::Pair{Symbol, T}, 
-	group::Union{Nothing, Int}, 
+	pair::Pair{Symbol, T},
+	group::Union{Nothing, Int},
 	binding::Union{Nothing, Int},
 	value::eltype(T)
 ) where T
@@ -171,12 +175,12 @@ end
 @forward UniformVar.var attribute, valueType, value, Base.getproperty, Base.setproperty!
 
 struct StorageVar{T} <: Variable
-	var::VarDataType{T}	
+	var::VarDataType{T}
 end
 
 function StorageVar(
-	pair::Pair{Symbol, T}, 
-	group::Union{Nothing, Int}, 
+	pair::Pair{Symbol, T},
+	group::Union{Nothing, Int},
 	binding::Union{Nothing, Int},
 	value::eltype(T)
 ) where T
@@ -198,8 +202,8 @@ struct PrivateVar{T} <: Variable
 end
 
 function PrivateVar(
-	pair::Pair{Symbol, T}, 
-	group::Union{Nothing, Int}, 
+	pair::Pair{Symbol, T},
+	group::Union{Nothing, Int},
 	binding::Union{Nothing, Int},
 	value::eltype(T)
 ) where T
@@ -218,10 +222,10 @@ end
 
 function defineVar(
 	varType::Symbol,
-	pair::Pair{Symbol, T}, 
-	group::Union{Nothing, Int}, 
+	pair::Pair{Symbol, T},
+	group::Union{Nothing, Int},
 	binding::Union{Nothing, Int},
-	value::eltype(T)
+	value::Union{Nothing, eltype(T)}
 ) where T
 	attrType = Union{map(typeof, [group, binding])...}
 	@assert attrType in [Nothing, Int] "Both group and binding should be defined or left to nothing"
@@ -235,7 +239,7 @@ end
 
 
 function defineLet(
-	pair::Pair{Symbol, T}, 
+	pair::Pair{Symbol, T},
 	value::eltype(T)
 ) where T
 	LetDataType{T}(
@@ -252,7 +256,7 @@ macro var(dtype::Expr)
 	@error "Unexpected Var expression !!!"
 end
 
-macro var(vtype, dtype::Expr)
+macro var(vtype::Symbol, dtype::Expr)
 	@capture(dtype, a_::dt_) || @error "Expecting sym::dtype! Current args are: $vtype, $dtype"
 	defineVar(vtype, a=>(eval(dt)), nothing, nothing, nothing)
 end
@@ -289,5 +293,3 @@ macro letvar(dtype::Symbol, value::Any) # TODO type must be checked most likely
 	# @capture(dtype, a_) &&  return defineLet(a=>eval(dt), value)
 	@error "Not sure if this is allowed!!! Expecting @let sym value!"
 end
-
-
